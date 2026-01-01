@@ -103,6 +103,8 @@ int minTests = input.int(2, "Minimum Tests", minval=1, maxval=5, group=GRP_BREAK
 // --- Risk Management Settings Group ---
 string GRP_RISK = "RISK MANAGEMENT (10%)"
 bool riskEnabled = input.bool(true, "Enable Risk Module", group=GRP_RISK)
+float accountCapital = input.float(10000, "Account Capital ($)", minval=1000, step=1000, group=GRP_RISK, tooltip="Your trading account size for position sizing")
+float riskPerTrade = input.float(1.0, "Risk Per Trade (%)", minval=0.1, maxval=5.0, step=0.1, group=GRP_RISK, tooltip="Percentage of account to risk per trade")
 float riskReward1 = input.float(1.5, "Take Profit 1 (R:R)", step=0.5, minval=0.5, maxval=5.0, group=GRP_RISK)
 float riskReward2 = input.float(3.0, "Take Profit 2 (R:R)", step=0.5, minval=1.0, maxval=10.0, group=GRP_RISK)
 float atrMultSL = input.float(1.5, "Stop Loss ATR Multiplier", step=0.1, minval=0.5, maxval=3.0, group=GRP_RISK)
@@ -114,6 +116,7 @@ string GRP_CONFLICT = "CONFLICT RESOLUTION (5%)"
 bool conflictEnabled = input.bool(true, "Enable Conflict Resolution", group=GRP_CONFLICT)
 bool requireMTFAlign = input.bool(true, "Require MTF Alignment", group=GRP_CONFLICT, tooltip="Multi-timeframe alignment required")
 bool requireVolConfirm = input.bool(true, "Require Volume Confirmation", group=GRP_CONFLICT)
+float volumeDeltaThreshold = input.float(1.5, "Volume Delta Threshold", minval=1.0, maxval=3.0, step=0.1, group=GRP_CONFLICT, tooltip="Minimum volume delta ratio for confirmation")
 bool blockEHLTrades = input.bool(true, "Block Trades in EQH/EQL Zones", group=GRP_CONFLICT)
 int minConfluenceScore = input.int(6, "Minimum Confluence Score", minval=1, maxval=9, group=GRP_CONFLICT)
 
@@ -281,6 +284,13 @@ if barstate.islast
 // ============================================
 // SECTION 5: UTILITY FUNCTIONS
 // ============================================
+
+// Data Validation - Check for valid price/volume data
+isValidData = not na(close) and not na(volume) and volume > 0 and close > 0
+
+// Safe Division - Prevent division by zero errors
+safeDiv(float numerator, float denominator) =>
+    denominator != 0 ? numerator / denominator : 0.0
 
 // Text Size Converter
 txSz(string s) =>
@@ -691,7 +701,7 @@ float high_ = ta.highest(hl2, 14)
 float low_ = ta.lowest(hl2, 14)
 roundVal(float val) => val > 0.99 ? 0.999 : val < -0.99 ? -0.999 : val
 var float fisherValue = 0.0
-fisherValue := roundVal(0.66 * ((hl2 - low_) / (high_ - low_) - 0.5) + 0.67 * nz(fisherValue[1]))
+fisherValue := roundVal(0.66 * (safeDiv(hl2 - low_, high_ - low_) - 0.5) + 0.67 * nz(fisherValue[1]))
 var float fish1 = 0.0
 fish1 := 0.5 * math.log((1 + fisherValue) / (1 - fisherValue)) + 0.5 * nz(fish1[1])
 float fish2 = fish1[1]
@@ -938,10 +948,12 @@ bool volatilitySqueeze = ta.atr(14) < ta.atr(14)[1] * 0.7 and
 // ============================================
 
 // --- 9.1 Dynamic Position Sizing ---
-// Position size based on confluence score
-float positionMultiplier = consensusScore >= 8 ? 1.0 : 
-                           consensusScore >= 6 ? 0.75 : 
-                           consensusScore >= 4 ? 0.5 : 0.25
+// Position multiplier based on confluence score (blueprint requirement)
+float positionMultiplier = 
+    consensusScore >= 9 ? 1.0 : 
+    consensusScore >= 7 ? 0.8 : 
+    consensusScore >= 5 ? 0.6 : 
+    consensusScore >= 3 ? 0.4 : 0.2
 
 // --- 9.2 Smart Stop Loss Calculation ---
 float atrSL = atrValue * atrMultSL
@@ -962,25 +974,51 @@ if bearOBs.size() > 0
 else
     smartStopShort := close + atrSL
 
-// --- 9.3 Multi-Level Take Profit ---
+// --- 9.3 Dynamic Position Size Calculation ---
+// Calculate stop loss distances for both directions
+float stopDistLong = math.abs(close - smartStopLong)
+float stopDistShort = math.abs(smartStopShort - close)
+
+// Calculate risk amount based on account capital and risk percentage
+float riskAmount = accountCapital * (riskPerTrade / 100) * positionMultiplier
+
+// Calculate position sizes for both directions
+float positionSizeLong = stopDistLong > 0 ? safeDiv(riskAmount, stopDistLong) : 0
+float positionSizeShort = stopDistShort > 0 ? safeDiv(riskAmount, stopDistShort) : 0
+
+// --- 9.4 Multi-Level Take Profit ---
 float tp1Long = close + (close - smartStopLong) * riskReward1
 float tp2Long = close + (close - smartStopLong) * riskReward2
 float tp1Short = close - (smartStopShort - close) * riskReward1
 float tp2Short = close - (smartStopShort - close) * riskReward2
 
-// --- 9.4 Trailing Stop Logic ---
+// --- 9.5 Trailing Stop Logic (Activates AFTER TP1 Hit) ---
 var float trailingStop = na
+var bool trailActive = false
 float trailDistance = atrValue * trailATRMult
 
 if useTrailingStop and tradeState.isActive
     if tradeState.isLong
-        newTrail = close - trailDistance
-        if na(trailingStop) or newTrail > trailingStop
-            trailingStop := newTrail
-    else
-        newTrail = close + trailDistance
-        if na(trailingStop) or newTrail < trailingStop
-            trailingStop := newTrail
+        // Activate trailing stop only after TP1 is hit
+        if high >= tradeState.takeProfit1 and not trailActive
+            trailActive := true
+            trailingStop := high - trailDistance
+        
+        // Update trailing stop if active (trail from high)
+        if trailActive
+            newTrail = high - trailDistance
+            trailingStop := math.max(nz(trailingStop), newTrail)
+            
+    else // Short trade
+        // Activate trailing stop only after TP1 is hit
+        if low <= tradeState.takeProfit1 and not trailActive
+            trailActive := true
+            trailingStop := low + trailDistance
+        
+        // Update trailing stop if active (trail from low)
+        if trailActive
+            newTrail = low + trailDistance
+            trailingStop := math.min(nz(trailingStop), newTrail)
 
 // ============================================
 // SECTION 10: CONFLICT RESOLUTION MODULE (5%)
@@ -1009,6 +1047,13 @@ bool mtfBearishAligned = mtfBearCount >= 3
 float avgVolume = ta.sma(volume, 20)
 bool volumeConfirmed = volume > avgVolume * 1.2
 
+// Volume Delta Check for Conflict Resolution
+bool volumeDeltaBullOK = volumeDeltaRatio > volumeDeltaThreshold
+bool volumeDeltaBearOK = volumeDeltaRatio < -volumeDeltaThreshold
+bool volumeDeltaOK = (marketTrend == 1 and volumeDeltaBullOK) or 
+                     (marketTrend == -1 and volumeDeltaBearOK) or
+                     marketTrend == 0
+
 // --- 10.3 Conflict Resolution Rules ---
 // Rule 1: Structure & Liquidity > Momentum
 bool structureConfirmed = (marketTrend == 1 and isBullishStructure) or 
@@ -1019,8 +1064,8 @@ bool mtfAlignmentOK = not requireMTFAlign or
                       (marketTrend == 1 and mtfBullishAligned) or 
                       (marketTrend == -1 and mtfBearishAligned)
 
-// Rule 3: Volume Confirmation
-bool volumeOK = not requireVolConfirm or volumeConfirmed
+// Rule 3: Volume Confirmation (includes volume delta)
+bool volumeOK = not requireVolConfirm or (volumeConfirmed and volumeDeltaOK)
 
 // Rule 4: No Trade in EQH/EQL Zones
 bool notInLiquidityZone = not blockEHLTrades or (not isEQH and not isEQL)
@@ -1196,6 +1241,7 @@ if showSignals
         tradeState.takeProfit2 := tp2Long
         tradeState.entryBar := bar_index
         trailingStop := na
+        trailActive := false
     
     // Short Entry
     if (signal1_InstitutionalLaunchpadBear or signal2_LiquidityTrapBear or 
@@ -1211,6 +1257,7 @@ if showSignals
         tradeState.takeProfit2 := tp2Short
         tradeState.entryBar := bar_index
         trailingStop := na
+        trailActive := false
 
 // Exit Logic
 if tradeState.isActive
@@ -1218,17 +1265,19 @@ if tradeState.isActive
     if tradeState.isLong
         if signal5_BullishExit or 
            low <= tradeState.stopLoss or 
-           (useTrailingStop and not na(trailingStop) and low <= trailingStop)
+           (useTrailingStop and trailActive and not na(trailingStop) and low <= trailingStop)
             tradeState.isActive := false
             trailingStop := na
+            trailActive := false
     
     // Short Exit
     else
         if signal6_BearishExit or 
            high >= tradeState.stopLoss or 
-           (useTrailingStop and not na(trailingStop) and high >= trailingStop)
+           (useTrailingStop and trailActive and not na(trailingStop) and high >= trailingStop)
             tradeState.isActive := false
             trailingStop := na
+            trailActive := false
 
 // ============================================
 // SECTION 13: VISUAL DISPLAY
@@ -1451,10 +1500,11 @@ if barstate.islast and showDashboard
     table.cell(dashboardTable, 1, 6, priceInBullOB ? "BULL OB" : priceInBearOB ? "BEAR OB" : "NONE", bgcolor=smcColor, text_color=color.white, text_size=size.tiny)
     table.cell(dashboardTable, 2, 6, isEQH ? "EQH" : isEQL ? "EQL" : "-", bgcolor=smcColor, text_color=color.white, text_size=size.tiny)
     
-    // Position Size
-    table.cell(dashboardTable, 0, 7, "Size", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 7, str.tostring(math.round(positionMultiplier * 100)) + "%", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 7, "Risk: " + str.tostring(riskReward1) + "R", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
+    // Position Size (shows calculated position based on account capital)
+    float displayPosSize = tradeState.isLong ? positionSizeLong : positionSizeShort
+    table.cell(dashboardTable, 0, 7, "Position", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 1, 7, str.tostring(math.round(positionMultiplier * 100)) + "% Size", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 2, 7, "$" + str.tostring(math.round(riskAmount, 2)) + " Risk", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
 
 // --- 14.2 Timeframe Table ---
 var table tfTable = table.new(position.bottom_right, 2, 6, border_width=1)
