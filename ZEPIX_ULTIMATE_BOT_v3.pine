@@ -8,7 +8,7 @@
 // Licensed by Zepix - Mozilla Public License 2.0
 // https://mozilla.org/MPL/2.0/
 //
-//@version=5
+//@version=6
 indicator(title="ZEPIX ULTIMATE BOT v3.0", 
      shorttitle="ZEPIX v3.0",
      overlay=true, 
@@ -220,21 +220,16 @@ type TradeState
 // SECTION 4: GLOBAL VARIABLES & ARRAYS
 // ============================================
 
-// Drawing Storage
-var DrawStore bin = DrawStore.new(
-    array.new<line>(),
-    array.new<label>(),
-    array.new<box>(),
-    array.new<linefill>()
-)
+// Drawing Storage - v6 compliant initialization
+var DrawStore bin = DrawStore.new(array.new_line(), array.new_label(), array.new_box(), array.new_linefill())
 
 // Order Block Arrays
-var OrderBlock[] bullOBs = array.new<OrderBlock>()
-var OrderBlock[] bearOBs = array.new<OrderBlock>()
+var array<OrderBlock> bullOBs = array.new<OrderBlock>()
+var array<OrderBlock> bearOBs = array.new<OrderBlock>()
 
 // FVG Arrays
-var FairValueGap[] bullFVGs = array.new<FairValueGap>()
-var FairValueGap[] bearFVGs = array.new<FairValueGap>()
+var array<FairValueGap> bullFVGs = array.new<FairValueGap>()
+var array<FairValueGap> bearFVGs = array.new<FairValueGap>()
 
 // Equal H/L tracking
 var EqualHL ehlData = EqualHL.new(0, 0, 0, 0)
@@ -243,7 +238,7 @@ var EqualHL ehlData = EqualHL.new(0, 0, 0, 0)
 var TradeState tradeState = TradeState.new(false, false, 0.0, 0.0, 0.0, 0.0, 0)
 
 // Signal Arrays
-var TradeSignal[] activeSignals = array.new<TradeSignal>()
+var array<TradeSignal> activeSignals = array.new<TradeSignal>()
 
 // Consensus Score Variables
 var int consensusScore = 0
@@ -1025,12 +1020,12 @@ if useTrailingStop and tradeState.isActive
 // ============================================
 
 // --- 10.1 Multi-Timeframe Alignment Check ---
-// Get trend from higher timeframes
-int htfTrend1 = request.security(syminfo.tickerid, tf1, zlTrend, lookahead=barmerge.lookahead_off)
-int htfTrend2 = request.security(syminfo.tickerid, tf2, zlTrend, lookahead=barmerge.lookahead_off)
-int htfTrend3 = request.security(syminfo.tickerid, tf3, zlTrend, lookahead=barmerge.lookahead_off)
-int htfTrend4 = request.security(syminfo.tickerid, tf4, zlTrend, lookahead=barmerge.lookahead_off)
-int htfTrend5 = request.security(syminfo.tickerid, tf5, zlTrend, lookahead=barmerge.lookahead_off)
+// Get trend from higher timeframes (v6 compatible with named parameters)
+int htfTrend1 = request.security(syminfo.tickerid, tf1, zlTrend, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+int htfTrend2 = request.security(syminfo.tickerid, tf2, zlTrend, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+int htfTrend3 = request.security(syminfo.tickerid, tf3, zlTrend, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+int htfTrend4 = request.security(syminfo.tickerid, tf4, zlTrend, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+int htfTrend5 = request.security(syminfo.tickerid, tf5, zlTrend, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 
 // Calculate MTF alignment
 int mtfBullCount = (htfTrend1 == 1 ? 1 : 0) + (htfTrend2 == 1 ? 1 : 0) + 
