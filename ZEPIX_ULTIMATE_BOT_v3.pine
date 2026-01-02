@@ -751,11 +751,14 @@ bearishIndicators := bearScore
 bool trendCrossUp = not vidyaTrendUp[1] and vidyaTrendUp
 bool trendCrossDown = not vidyaTrendUp and vidyaTrendUp[1]
 
-if ta.change(trendCrossUp) or ta.change(trendCrossDown)
+// v6 fix: Use direct boolean check instead of ta.change() on booleans
+bool trendReset = trendCrossUp or trendCrossDown
+
+if trendReset
     upTrendVolume := 0
     downTrendVolume := 0
 
-if not (ta.change(trendCrossUp) or ta.change(trendCrossDown))
+if not trendReset
     upTrendVolume += (close > open ? volume : 0)
     downTrendVolume += (close < open ? volume : 0)
 
@@ -838,12 +841,16 @@ checkTrendCross(float price, int startTime, float startPrice, float slp) =>
     crossover
 
 // Breakout Detection
+// v6 fix: Cache function results before using in conditions
+int crossResultLong = checkTrendCross(close, updatedX, updatedY, updatedSlope)
+int crossResultShort = checkTrendCross(close, updatedXLow, updatedYLow, updatedSlopeLow)
+
 bool trendLongBreak = not (updatedSlope * time > 0) and 
-     checkTrendCross(close, updatedX, updatedY, updatedSlope) == 1 and 
+     crossResultLong == 1 and 
      not tradeIsOn
 
 bool trendShortBreak = not (updatedSlopeLow * time < 0) and 
-     checkTrendCross(close, updatedXLow, updatedYLow, updatedSlopeLow) == -1 and 
+     crossResultShort == -1 and 
      not tradeIsOn
 
 // --- 8.2 Breakout Pattern Detection (Cup & Handle, etc.) ---
@@ -934,10 +941,16 @@ if breakoutEnabled and array.size(plval) >= minTests and close < open and close 
 bool bearishBreakdown = not na(bomin) and num1 >= minTests
 
 // --- 8.3 Volatility Squeeze Detection ---
-bool volatilitySqueeze = ta.atr(14) < ta.atr(14)[1] * 0.7 and 
-     ta.atr(14)[1] < ta.atr(14)[2] * 0.7 and 
-     volume < ta.sma(volume, 20) * 0.5 and 
-     ta.highest(high, 20) - ta.lowest(low, 20) < ta.atr(14) * 2.0
+// v6 fix: Cache ta.atr() and other function calls outside condition
+float atr14 = ta.atr(14)
+float smaVol20 = ta.sma(volume, 20)
+float highest20 = ta.highest(high, 20)
+float lowest20 = ta.lowest(low, 20)
+
+bool volatilitySqueeze = atr14 < atr14[1] * 0.7 and 
+     atr14[1] < atr14[2] * 0.7 and 
+     volume < smaVol20 * 0.5 and 
+     highest20 - lowest20 < atr14 * 2.0
 
 // ============================================
 // SECTION 9: RISK MANAGEMENT MODULE (10%)
@@ -945,11 +958,16 @@ bool volatilitySqueeze = ta.atr(14) < ta.atr(14)[1] * 0.7 and
 
 // --- 9.1 Dynamic Position Sizing ---
 // Position multiplier based on confluence score (blueprint requirement)
-float positionMultiplier = 
-    consensusScore >= 9 ? 1.0 : 
-    consensusScore >= 7 ? 0.8 : 
-    consensusScore >= 5 ? 0.6 : 
-    consensusScore >= 3 ? 0.4 : 0.2
+// v6 fix: Convert multi-line ternary to if-else
+float positionMultiplier = 0.2
+if consensusScore >= 9
+    positionMultiplier := 1.0
+else if consensusScore >= 7
+    positionMultiplier := 0.8
+else if consensusScore >= 5
+    positionMultiplier := 0.6
+else if consensusScore >= 3
+    positionMultiplier := 0.4
 
 // --- 9.2 Smart Stop Loss Calculation ---
 float atrSL = atrValue * atrMultSL
@@ -1168,9 +1186,12 @@ bool signal6_BearishExit =
 
 // --- Signal 7: Golden Pocket Flip ---
 // Structure break + Fib retracement (0.618-0.786)
+// v6 fix: Cache ta.highest/ta.lowest calls outside condition
+float fibHigh20 = ta.highest(high, 20)
+float fibLow20 = ta.lowest(low, 20)
 float fibLevel = 0.0
-if ta.highest(high, 20) != ta.lowest(low, 20)
-    fibLevel := (close - ta.lowest(low, 20)) / (ta.highest(high, 20) - ta.lowest(low, 20))
+if fibHigh20 != fibLow20
+    fibLevel := (close - fibLow20) / (fibHigh20 - fibLow20)
 
 bool signal7_GoldenPocketFlipBull = 
     smcEnabled and
