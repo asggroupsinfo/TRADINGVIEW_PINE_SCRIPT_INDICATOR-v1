@@ -1283,10 +1283,7 @@ plotshape(showSignals and signal8_VolatilitySqueeze,
 // --- 13.2 Trend Catcher Overlay ---
 color zlemaColor = zlTrend == 1 ? color.new(bullColor, 70) : color.new(bearColor, 70)
 plot(showTrendCatcher ? zlema : na, "ZLEMA", color=zlemaColor, linewidth=2)
-plot(showTrendCatcher and zlTrend == -1 ? zlema + volatility : na, "Upper Band", 
-    style=plot.style_linebr, linewidth=1, color=color.new(bearColor, 70))
-plot(showTrendCatcher and zlTrend == 1 ? zlema - volatility : na, "Lower Band", 
-    style=plot.style_linebr, linewidth=1, color=color.new(bullColor, 70))
+// Removed Upper/Lower Band plots to reduce plot count (was exceeding 64 limit)
 
 // --- 13.3 Bar Coloring ---
 color barCol = na
@@ -1356,17 +1353,19 @@ if barstate.islast and showFVG and smcEnabled
                     border_color=na, bgcolor=color.new(bearColor, 85), xloc=xloc.bar_time
                 ))
 
-// --- 13.6 Equal H/L Visualization ---
-plotshape(showEHL and isEQH, title="Equal High", style=shape.triangledown, 
-    location=location.abovebar, color=bearColor, size=size.tiny)
-plotshape(showEHL and isEQL, title="Equal Low", style=shape.triangleup, 
-    location=location.belowbar, color=bullColor, size=size.tiny)
+// --- 13.6 Equal H/L Visualization (using lines instead of plotshape to reduce plot count) ---
+if showEHL and isEQH
+    line.new(bar_index - 1, high, bar_index, high, color=bearColor, style=line.style_dotted, width=2)
+if showEHL and isEQL
+    line.new(bar_index - 1, low, bar_index, low, color=bullColor, style=line.style_dotted, width=2)
 
-// --- 13.7 Liquidity Prints ---
-plotcandle(high, high, math.max(close, open), math.max(close, open), 
-    color=na, wickcolor=na, bordercolor=bearSweep and showLiqPrints ? color.orange : na)
-plotcandle(low, low, math.min(close, open), math.min(close, open), 
-    color=na, wickcolor=na, bordercolor=bullSweep and showLiqPrints ? color.blue : na)
+// --- 13.7 Liquidity Prints (removed plotcandle to reduce plot count) ---
+// Visual indication now handled by EHL lines above
+
+// --- 13.8 Debug Label (verify visual elements are working) ---
+if barstate.islast
+    string debugText = "OB: " + str.tostring(bullOBs.size()) + "B/" + str.tostring(bearOBs.size()) + "S | FVG: " + str.tostring(bullFVGs.size()) + "B/" + str.tostring(bearFVGs.size()) + "S | Trend: " + (marketTrend == 1 ? "BULL" : marketTrend == -1 ? "BEAR" : "NONE")
+    label.new(bar_index, high + (high * 0.001), debugText, color=color.new(#673AB7, 20), textcolor=color.white, style=label.style_label_down, size=size.small)
 
 // ============================================
 // SECTION 14: DATA TABLES & DASHBOARD
@@ -1377,90 +1376,90 @@ var table dashboardTable = table.new(position.top_right, 3, 8, border_width=1)
 
 if barstate.islast and showDashboard
     // Header
-    table.cell(dashboardTable, 0, 0, "ZEPIX v3.0", bgcolor=#673AB7, text_color=color.white, text_size=size.small)
-    table.cell(dashboardTable, 1, 0, "Status", bgcolor=#673AB7, text_color=color.white, text_size=size.small)
-    table.cell(dashboardTable, 2, 0, "Value", bgcolor=#673AB7, text_color=color.white, text_size=size.small)
+    table.cell(dashboardTable, 0, 0, "ZEPIX v3.0", bgcolor=#673AB7, text_color=color.white, text_size=size.large)
+    table.cell(dashboardTable, 1, 0, "Status", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 0, "Value", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
     
     // Confluence Score
     scoreColor = consensusScore >= 7 ? bullColor : consensusScore <= 2 ? bearColor : neutralColor
-    table.cell(dashboardTable, 0, 1, "Confluence", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 1, str.tostring(consensusScore) + "/9", bgcolor=scoreColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 1, consensusScore >= 7 ? "STRONG" : consensusScore <= 2 ? "WEAK" : "NEUTRAL", bgcolor=scoreColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 1, "Confluence", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 1, str.tostring(consensusScore) + "/9", bgcolor=scoreColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 1, consensusScore >= 7 ? "STRONG" : consensusScore <= 2 ? "WEAK" : "NEUTRAL", bgcolor=scoreColor, text_color=color.white, text_size=size.normal)
     
     // Market Trend
     trendColor = marketTrend == 1 ? bullColor : marketTrend == -1 ? bearColor : color.gray
-    table.cell(dashboardTable, 0, 2, "Trend", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 2, marketTrend == 1 ? "BULL" : marketTrend == -1 ? "BEAR" : "NONE", bgcolor=trendColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 2, structureTrend == 1 ? "UP" : "DOWN", bgcolor=trendColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 2, "Trend", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 2, marketTrend == 1 ? "BULL" : marketTrend == -1 ? "BEAR" : "NONE", bgcolor=trendColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 2, structureTrend == 1 ? "UP" : "DOWN", bgcolor=trendColor, text_color=color.white, text_size=size.normal)
     
     // MTF Alignment
     mtfColor = mtfBullishAligned ? bullColor : mtfBearishAligned ? bearColor : color.gray
-    table.cell(dashboardTable, 0, 3, "MTF", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 3, str.tostring(mtfBullCount) + "B/" + str.tostring(mtfBearCount) + "S", bgcolor=mtfColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 3, mtfBullishAligned ? "ALIGNED" : mtfBearishAligned ? "ALIGNED" : "MIXED", bgcolor=mtfColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 3, "MTF", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 3, str.tostring(mtfBullCount) + "B/" + str.tostring(mtfBearCount) + "S", bgcolor=mtfColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 3, mtfBullishAligned ? "ALIGNED" : mtfBearishAligned ? "ALIGNED" : "MIXED", bgcolor=mtfColor, text_color=color.white, text_size=size.normal)
     
     // Volume
     volColor = volumeConfirmed ? bullColor : color.gray
-    table.cell(dashboardTable, 0, 4, "Volume", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 4, volumeConfirmed ? "HIGH" : "LOW", bgcolor=volColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 4, str.tostring(math.round(volume/avgVolume*100)) + "%", bgcolor=volColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 4, "Volume", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 4, volumeConfirmed ? "HIGH" : "LOW", bgcolor=volColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 4, str.tostring(math.round(volume/avgVolume*100)) + "%", bgcolor=volColor, text_color=color.white, text_size=size.normal)
     
     // Trade Status
     tradeColor = tradeState.isActive ? (tradeState.isLong ? bullColor : bearColor) : color.gray
-    table.cell(dashboardTable, 0, 5, "Trade", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 5, tradeState.isActive ? (tradeState.isLong ? "LONG" : "SHORT") : "NONE", bgcolor=tradeColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 5, tradeState.isActive ? str.tostring(math.round(tradeState.entryPrice, 2)) : "-", bgcolor=tradeColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 5, "Trade", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 5, tradeState.isActive ? (tradeState.isLong ? "LONG" : "SHORT") : "NONE", bgcolor=tradeColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 5, tradeState.isActive ? str.tostring(math.round(tradeState.entryPrice, 2)) : "-", bgcolor=tradeColor, text_color=color.white, text_size=size.normal)
     
     // SMC Status
     smcColor = priceInBullOB ? bullColor : priceInBearOB ? bearColor : color.gray
-    table.cell(dashboardTable, 0, 6, "SMC", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 6, priceInBullOB ? "BULL OB" : priceInBearOB ? "BEAR OB" : "NONE", bgcolor=smcColor, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 6, isEQH ? "EQH" : isEQL ? "EQL" : "-", bgcolor=smcColor, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 6, "SMC", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 6, priceInBullOB ? "BULL OB" : priceInBearOB ? "BEAR OB" : "NONE", bgcolor=smcColor, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 6, isEQH ? "EQH" : isEQL ? "EQL" : "-", bgcolor=smcColor, text_color=color.white, text_size=size.normal)
     
     // Position Size (shows calculated position based on account capital)
     float displayPosSize = tradeState.isLong ? positionSizeLong : positionSizeShort
-    table.cell(dashboardTable, 0, 7, "Position", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 1, 7, str.tostring(math.round(positionMultiplier * 100)) + "% Size", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(dashboardTable, 2, 7, "$" + str.tostring(math.round(riskAmount, 2)) + " Risk", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
+    table.cell(dashboardTable, 0, 7, "Position", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 1, 7, str.tostring(math.round(positionMultiplier * 100)) + "% Size", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(dashboardTable, 2, 7, "$" + str.tostring(math.round(riskAmount, 2)) + " Risk", bgcolor=#111620, text_color=color.white, text_size=size.normal)
 
 // --- 14.2 Timeframe Table ---
 var table tfTable = table.new(position.bottom_right, 2, 6, border_width=1)
 
 if barstate.islast and showTimeframeTable
-    table.cell(tfTable, 0, 0, "Timeframe", bgcolor=#673AB7, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 0, "Trend", bgcolor=#673AB7, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 0, "Timeframe", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 0, "Trend", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
     
-    table.cell(tfTable, 0, 1, tf1, bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 1, htfTrend1 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend1 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 1, tf1, bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 1, htfTrend1 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend1 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.normal)
     
-    table.cell(tfTable, 0, 2, tf2, bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 2, htfTrend2 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend2 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 2, tf2, bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 2, htfTrend2 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend2 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.normal)
     
-    table.cell(tfTable, 0, 3, tf3, bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 3, htfTrend3 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend3 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 3, tf3, bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 3, htfTrend3 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend3 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.normal)
     
-    table.cell(tfTable, 0, 4, tf4, bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 4, htfTrend4 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend4 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 4, tf4, bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 4, htfTrend4 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend4 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.normal)
     
-    table.cell(tfTable, 0, 5, tf5, bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(tfTable, 1, 5, htfTrend5 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend5 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(tfTable, 0, 5, tf5, bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(tfTable, 1, 5, htfTrend5 == 1 ? "Bullish" : "Bearish", bgcolor=htfTrend5 == 1 ? bullColor : bearColor, text_color=color.white, text_size=size.normal)
 
 // --- 14.3 Volume Data Table ---
 var table volTable = table.new(position.middle_right, 2, 4, border_width=1)
 
 if barstate.islast and showVolumeTable
-    table.cell(volTable, 0, 0, "Volume Data", bgcolor=#673AB7, text_color=color.white, text_size=size.tiny)
-    table.cell(volTable, 1, 0, "Value", bgcolor=#673AB7, text_color=color.white, text_size=size.tiny)
+    table.cell(volTable, 0, 0, "Volume Data", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
+    table.cell(volTable, 1, 0, "Value", bgcolor=#673AB7, text_color=color.white, text_size=size.normal)
     
-    table.cell(volTable, 0, 1, "Buy Volume", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(volTable, 1, 1, str.tostring(upTrendVolume, format.volume), bgcolor=bullColor, text_color=color.white, text_size=size.tiny)
+    table.cell(volTable, 0, 1, "Buy Volume", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(volTable, 1, 1, str.tostring(upTrendVolume, format.volume), bgcolor=bullColor, text_color=color.white, text_size=size.normal)
     
-    table.cell(volTable, 0, 2, "Sell Volume", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(volTable, 1, 2, str.tostring(downTrendVolume, format.volume), bgcolor=bearColor, text_color=color.white, text_size=size.tiny)
+    table.cell(volTable, 0, 2, "Sell Volume", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(volTable, 1, 2, str.tostring(downTrendVolume, format.volume), bgcolor=bearColor, text_color=color.white, text_size=size.normal)
     
     deltaStr = avgVolumeDelta > 0 ? str.tostring(math.round(volumeDeltaRatio * 100)) + "%" : "0%"
-    table.cell(volTable, 0, 3, "Delta", bgcolor=#111620, text_color=color.white, text_size=size.tiny)
-    table.cell(volTable, 1, 3, deltaStr, bgcolor=neutralColor, text_color=#111620, text_size=size.tiny)
+    table.cell(volTable, 0, 3, "Delta", bgcolor=#111620, text_color=color.white, text_size=size.normal)
+    table.cell(volTable, 1, 3, deltaStr, bgcolor=neutralColor, text_color=#111620, text_size=size.normal)
 
 // ============================================
 // SECTION 15: ALERT CONDITIONS
