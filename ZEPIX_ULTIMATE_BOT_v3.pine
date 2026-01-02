@@ -845,13 +845,9 @@ checkTrendCross(float price, int startTime, float startPrice, float slp) =>
 int crossResultLong = checkTrendCross(close, updatedX, updatedY, updatedSlope)
 int crossResultShort = checkTrendCross(close, updatedXLow, updatedYLow, updatedSlopeLow)
 
-bool trendLongBreak = not (updatedSlope * time > 0) and 
-     crossResultLong == 1 and 
-     not tradeIsOn
+bool trendLongBreak = (not (updatedSlope * time > 0) and crossResultLong == 1 and not tradeIsOn)
 
-bool trendShortBreak = not (updatedSlopeLow * time < 0) and 
-     crossResultShort == -1 and 
-     not tradeIsOn
+bool trendShortBreak = (not (updatedSlopeLow * time < 0) and crossResultShort == -1 and not tradeIsOn)
 
 // --- 8.2 Breakout Pattern Detection (Cup & Handle, etc.) ---
 // Breakout arrays
@@ -947,10 +943,7 @@ float smaVol20 = ta.sma(volume, 20)
 float highest20 = ta.highest(high, 20)
 float lowest20 = ta.lowest(low, 20)
 
-bool volatilitySqueeze = atr14 < atr14[1] * 0.7 and 
-     atr14[1] < atr14[2] * 0.7 and 
-     volume < smaVol20 * 0.5 and 
-     highest20 - lowest20 < atr14 * 2.0
+bool volatilitySqueeze = (atr14 < atr14[1] * 0.7 and atr14[1] < atr14[2] * 0.7 and volume < smaVol20 * 0.5 and highest20 - lowest20 < atr14 * 2.0)
 
 // ============================================
 // SECTION 9: RISK MANAGEMENT MODULE (10%)
@@ -1085,10 +1078,8 @@ bool volumeOK = not requireVolConfirm or (volumeConfirmed and volumeDeltaOK)
 bool notInLiquidityZone = not blockEHLTrades or (not isEQH and not isEQL)
 
 // Combined Conflict Resolution
-bool bullishSignalAllowed = mtfAlignmentOK and volumeOK and notInLiquidityZone and 
-                            consensusScore >= minConfluenceScore
-bool bearishSignalAllowed = mtfAlignmentOK and volumeOK and notInLiquidityZone and 
-                            (9 - consensusScore) >= minConfluenceScore
+bool bullishSignalAllowed = (mtfAlignmentOK and volumeOK and notInLiquidityZone and consensusScore >= minConfluenceScore)
+bool bearishSignalAllowed = (mtfAlignmentOK and volumeOK and notInLiquidityZone and (9 - consensusScore) >= minConfluenceScore)
 
 // ============================================
 // SECTION 11: 10 SPECIFIC SIGNALS
@@ -1096,93 +1087,35 @@ bool bearishSignalAllowed = mtfAlignmentOK and volumeOK and notInLiquidityZone a
 
 // --- Signal 1: Institutional Launchpad ---
 // SMC + Consensus + Breakout alignment
-bool signal1_InstitutionalLaunchpad = 
-    smcEnabled and consensusEnabled and breakoutEnabled and
-    priceInBullOB and 
-    consensusScore >= 7 and 
-    (bullishBreakout or trendLongBreak) and 
-    marketTrend == 1 and 
-    volumeConfirmed and 
-    bullishSignalAllowed
+bool signal1_InstitutionalLaunchpad = (smcEnabled and consensusEnabled and breakoutEnabled and priceInBullOB and consensusScore >= 7 and (bullishBreakout or trendLongBreak) and marketTrend == 1 and volumeConfirmed and bullishSignalAllowed)
 
-bool signal1_InstitutionalLaunchpadBear = 
-    smcEnabled and consensusEnabled and breakoutEnabled and
-    priceInBearOB and 
-    consensusScore <= 2 and 
-    (bearishBreakdown or trendShortBreak) and 
-    marketTrend == -1 and 
-    volumeConfirmed and 
-    bearishSignalAllowed
+bool signal1_InstitutionalLaunchpadBear = (smcEnabled and consensusEnabled and breakoutEnabled and priceInBearOB and consensusScore <= 2 and (bearishBreakdown or trendShortBreak) and marketTrend == -1 and volumeConfirmed and bearishSignalAllowed)
 
 // --- Signal 2: Liquidity Trap Reversal ---
 // Sweep + OB + Volume confirmation
-bool signal2_LiquidityTrapBull = 
-    smcEnabled and
-    bullSweep and 
-    priceInBullOB and 
-    volumeConfirmed and 
-    marketTrend == 1 and 
-    bullishSignalAllowed
+bool signal2_LiquidityTrapBull = (smcEnabled and bullSweep and priceInBullOB and volumeConfirmed and marketTrend == 1 and bullishSignalAllowed)
 
-bool signal2_LiquidityTrapBear = 
-    smcEnabled and
-    bearSweep and 
-    priceInBearOB and 
-    volumeConfirmed and 
-    marketTrend == -1 and 
-    bearishSignalAllowed
+bool signal2_LiquidityTrapBear = (smcEnabled and bearSweep and priceInBearOB and volumeConfirmed and marketTrend == -1 and bearishSignalAllowed)
 
 // --- Signal 3: Momentum Breakout ---
 // Trendline break + Consensus > 7
-bool signal3_MomentumBreakoutBull = 
-    breakoutEnabled and consensusEnabled and
-    trendLongBreak and 
-    consensusScore >= 7 and 
-    volumeConfirmed and 
-    bullishSignalAllowed
+bool signal3_MomentumBreakoutBull = (breakoutEnabled and consensusEnabled and trendLongBreak and consensusScore >= 7 and volumeConfirmed and bullishSignalAllowed)
 
-bool signal3_MomentumBreakoutBear = 
-    breakoutEnabled and consensusEnabled and
-    trendShortBreak and 
-    consensusScore <= 2 and 
-    volumeConfirmed and 
-    bearishSignalAllowed
+bool signal3_MomentumBreakoutBear = (breakoutEnabled and consensusEnabled and trendShortBreak and consensusScore <= 2 and volumeConfirmed and bearishSignalAllowed)
 
 // --- Signal 4: Mitigation Test Entry ---
 // OB retest with volume
-bool signal4_MitigationTestBull = 
-    smcEnabled and
-    priceInBullOB and 
-    not newBullOB and 
-    close > open and 
-    volumeConfirmed and 
-    marketTrend == 1 and 
-    bullishSignalAllowed
+bool signal4_MitigationTestBull = (smcEnabled and priceInBullOB and not newBullOB and close > open and volumeConfirmed and marketTrend == 1 and bullishSignalAllowed)
 
-bool signal4_MitigationTestBear = 
-    smcEnabled and
-    priceInBearOB and 
-    not newBearOB and 
-    close < open and 
-    volumeConfirmed and 
-    marketTrend == -1 and 
-    bearishSignalAllowed
+bool signal4_MitigationTestBear = (smcEnabled and priceInBearOB and not newBearOB and close < open and volumeConfirmed and marketTrend == -1 and bearishSignalAllowed)
 
 // --- Signal 5: Bullish Exit ---
 // TP hit or bearish OB entry or momentum exhaustion
-bool signal5_BullishExit = 
-    tradeState.isActive and tradeState.isLong and
-    (high >= tradeState.takeProfit1 or 
-     priceInBearOB or 
-     consensusScore <= 3)
+bool signal5_BullishExit = (tradeState.isActive and tradeState.isLong and (high >= tradeState.takeProfit1 or priceInBearOB or consensusScore <= 3))
 
 // --- Signal 6: Bearish Exit ---
 // TP hit or bullish OB entry or momentum exhaustion
-bool signal6_BearishExit = 
-    tradeState.isActive and not tradeState.isLong and
-    (low <= tradeState.takeProfit1 or 
-     priceInBullOB or 
-     consensusScore >= 6)
+bool signal6_BearishExit = (tradeState.isActive and not tradeState.isLong and (low <= tradeState.takeProfit1 or priceInBullOB or consensusScore >= 6))
 
 // --- Signal 7: Golden Pocket Flip ---
 // Structure break + Fib retracement (0.618-0.786)
@@ -1193,63 +1126,34 @@ float fibLevel = 0.0
 if fibHigh20 != fibLow20
     fibLevel := (close - fibLow20) / (fibHigh20 - fibLow20)
 
-bool signal7_GoldenPocketFlipBull = 
-    smcEnabled and
-    (isCHOCH or isBOS) and 
-    fibLevel >= 0.618 and fibLevel <= 0.786 and 
-    priceInBullOB and 
-    volumeConfirmed and 
-    bullishSignalAllowed
+bool signal7_GoldenPocketFlipBull = (smcEnabled and (isCHOCH or isBOS) and fibLevel >= 0.618 and fibLevel <= 0.786 and priceInBullOB and volumeConfirmed and bullishSignalAllowed)
 
-bool signal7_GoldenPocketFlipBear = 
-    smcEnabled and
-    (isCHOCH or isBOS) and 
-    fibLevel >= 0.214 and fibLevel <= 0.382 and 
-    priceInBearOB and 
-    volumeConfirmed and 
-    bearishSignalAllowed
+bool signal7_GoldenPocketFlipBear = (smcEnabled and (isCHOCH or isBOS) and fibLevel >= 0.214 and fibLevel <= 0.382 and priceInBearOB and volumeConfirmed and bearishSignalAllowed)
 
 // --- Signal 8: Volatility Squeeze Alert ---
 // Pre-breakout compression
-bool signal8_VolatilitySqueeze = 
-    breakoutEnabled and
-    volatilitySqueeze and 
-    consensusScore >= 4 and consensusScore <= 5
+bool signal8_VolatilitySqueeze = (breakoutEnabled and volatilitySqueeze and consensusScore >= 4 and consensusScore <= 5)
 
 // --- Signal 9: Screener Full Bullish ---
 // All 9 indicators bullish + HTF alignment + structure
-bool signal9_ScreenerFullBullish = 
-    consensusEnabled and
-    consensusScore == 9 and 
-    mtfBullishAligned and 
-    marketTrend == 1 and 
-    volumeDeltaRatio > 2.0 and 
-    not priceInBearOB and 
-    not isEQH
+bool signal9_ScreenerFullBullish = (consensusEnabled and consensusScore == 9 and mtfBullishAligned and marketTrend == 1 and volumeDeltaRatio > 2.0 and not priceInBearOB and not isEQH)
 
 // --- Signal 10: Screener Full Bearish ---
 // All 9 indicators bearish + HTF alignment + structure
-bool signal10_ScreenerFullBearish = 
-    consensusEnabled and
-    consensusScore == 0 and 
-    mtfBearishAligned and 
-    marketTrend == -1 and 
-    volumeDeltaRatio < -2.0 and 
-    not priceInBullOB and 
-    not isEQL
+bool signal10_ScreenerFullBearish = (consensusEnabled and consensusScore == 0 and mtfBearishAligned and marketTrend == -1 and volumeDeltaRatio < -2.0 and not priceInBullOB and not isEQL)
 
 // ============================================
 // SECTION 12: TRADE STATE MANAGEMENT
 // ============================================
 
 // Entry Logic
+// v6 fix: Pre-compute entry conditions to avoid multi-line expressions in if statements
+bool longEntryCondition = (signal1_InstitutionalLaunchpad or signal2_LiquidityTrapBull or signal3_MomentumBreakoutBull or signal4_MitigationTestBull or signal7_GoldenPocketFlipBull or signal9_ScreenerFullBullish) and not tradeState.isActive
+bool shortEntryCondition = (signal1_InstitutionalLaunchpadBear or signal2_LiquidityTrapBear or signal3_MomentumBreakoutBear or signal4_MitigationTestBear or signal7_GoldenPocketFlipBear or signal10_ScreenerFullBearish) and not tradeState.isActive
+
 if showSignals
     // Long Entry
-    if (signal1_InstitutionalLaunchpad or signal2_LiquidityTrapBull or 
-        signal3_MomentumBreakoutBull or signal4_MitigationTestBull or 
-        signal7_GoldenPocketFlipBull or signal9_ScreenerFullBullish) and 
-        not tradeState.isActive
-        
+    if longEntryCondition
         tradeState.isActive := true
         tradeState.isLong := true
         tradeState.entryPrice := close
@@ -1261,11 +1165,7 @@ if showSignals
         trailActive := false
     
     // Short Entry
-    if (signal1_InstitutionalLaunchpadBear or signal2_LiquidityTrapBear or 
-        signal3_MomentumBreakoutBear or signal4_MitigationTestBear or 
-        signal7_GoldenPocketFlipBear or signal10_ScreenerFullBearish) and 
-        not tradeState.isActive
-        
+    if shortEntryCondition
         tradeState.isActive := true
         tradeState.isLong := false
         tradeState.entryPrice := close
