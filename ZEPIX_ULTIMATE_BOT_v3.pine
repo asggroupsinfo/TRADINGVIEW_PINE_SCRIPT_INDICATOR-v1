@@ -1469,11 +1469,11 @@ if barstate.islast and showVolumeTable
 // --- Signal 1: Institutional Launchpad ---
 alertcondition(signal1_InstitutionalLaunchpad, 
     title="1. Institutional Launchpad (Bull)", 
-    message="ZEPIX: Institutional Launchpad LONG on {{ticker}} at {{close}} | Confluence: " + str.tostring(consensusScore) + "/9")
+    message="ZEPIX: Institutional Launchpad LONG on {{ticker}} at {{close}}")
 
 alertcondition(signal1_InstitutionalLaunchpadBear, 
     title="1. Institutional Launchpad (Bear)", 
-    message="ZEPIX: Institutional Launchpad SHORT on {{ticker}} at {{close}} | Confluence: " + str.tostring(consensusScore) + "/9")
+    message="ZEPIX: Institutional Launchpad SHORT on {{ticker}} at {{close}}")
 
 // --- Signal 2: Liquidity Trap Reversal ---
 alertcondition(signal2_LiquidityTrapBull, 
@@ -1487,11 +1487,11 @@ alertcondition(signal2_LiquidityTrapBear,
 // --- Signal 3: Momentum Breakout ---
 alertcondition(signal3_MomentumBreakoutBull, 
     title="3. Momentum Breakout (Bull)", 
-    message="ZEPIX: Momentum Breakout LONG on {{ticker}} at {{close}} | Confluence: " + str.tostring(consensusScore) + "/9")
+    message="ZEPIX: Momentum Breakout LONG on {{ticker}} at {{close}}")
 
 alertcondition(signal3_MomentumBreakoutBear, 
     title="3. Momentum Breakout (Bear)", 
-    message="ZEPIX: Momentum Breakout SHORT on {{ticker}} at {{close}} | Confluence: " + str.tostring(consensusScore) + "/9")
+    message="ZEPIX: Momentum Breakout SHORT on {{ticker}} at {{close}}")
 
 // --- Signal 4: Mitigation Test Entry ---
 alertcondition(signal4_MitigationTestBull, 
